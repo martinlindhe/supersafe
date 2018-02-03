@@ -10,7 +10,9 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"time"
 
+	"github.com/feixiao/httpprof"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -44,13 +46,14 @@ func run(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		proberCom := file.Name() + ".com"
 		defer os.Remove(proberCom)
 
-		fmt.Printf("exec %s (%d bytes)\n", proberCom, len(com))
 		err = ioutil.WriteFile(proberCom, com, 0644)
 		if err != nil {
 			log.Println("error writing com to disk", err)
 			return
 		}
 
+		t := time.Now()
+		fmt.Printf("%s: exec %s (%d bytes)\n", t.Format("15:04:05"), proberCom, len(com))
 		out, err := exec.Command("cmd", "/C", proberCom).Output()
 		if err != nil {
 			log.Println("error running command", err)
@@ -65,7 +68,10 @@ func run(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 var port = 28111
 
 func main() {
+	runtime.SetBlockProfileRate(1)
+
 	router := httprouter.New()
+	router = httpprof.WrapRouter(router) // Register pprof handlers
 	router.GET("/", index)
 	router.POST("/run", run)
 
